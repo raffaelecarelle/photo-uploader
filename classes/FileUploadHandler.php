@@ -2,6 +2,8 @@
 
 namespace App;
 
+use Gumlet\ImageResize;
+
 class FileUploadHandler
 {
     private static $error_messages = array(
@@ -22,24 +24,32 @@ class FileUploadHandler
     private static $typesAllowed = [
         'image/jpg',
         'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/bmp',
+        'image/png'
     ];
 
     private $pathToSaveFiles;
 
-    private $createThumbs;
+    private $createVersions;
 
     private $files;
 
     private $errorsOccurred = array();
 
-    public function __construct($pathToSaveFiles = '/photo-uploader/files/', bool $createThumbs = true)
+    private static $photoVersions = [
+        'thumb' => '50x50',
+        'small' => '150x150',
+        'medium' => '767x767',
+        'large' => '1024x768'
+    ];
+
+    public function __construct($pathToSaveFiles = '/photo-uploader/photos/', $createVersions = true)
     {
         $this->pathToSaveFiles = $pathToSaveFiles;
-        $this->createThumbs = $createThumbs;
-        var_dump(static::getBytesFromIniProperty('upload_max_filesize'));
+        $this->createVersions = $createVersions;
+
+        if(!file_exists($_SERVER['DOCUMENT_ROOT'] . $pathToSaveFiles)) {
+            mkdir($_SERVER['DOCUMENT_ROOT'] . $pathToSaveFiles, 0777, true);
+        }
     }
 
     /**
@@ -51,9 +61,7 @@ class FileUploadHandler
 
         if (empty($this->files)) {
 
-            $this->errorsOccurred = static::$error_messages['no_files'];
-
-            return false;
+            return static::$error_messages['no_files'];
 
         }
 
@@ -75,43 +83,68 @@ class FileUploadHandler
 
             if ($this->validate($file)) {
 
-                return $file->save($this->pathToSave);
+                $file->save($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles);
+
+                if ($this->createVersions) {
+
+                    $this->createVersions($file);
+
+                }
 
             }
+
         }
+
     }
 
     public function validate(File $file): bool
     {
         if ($file->getSize() >= static::getBytesFromIniProperty('upload_max_filesize')) {
 
-            $this->errorsOccurred[] = static::$error_messages['upload_max_filesize'];
+            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['upload_max_filesize'];
 
         }
 
-        if (\in_array($file->getType(), static::$typesAllowed)) {
+        if (!\in_array($file->getType(), static::$typesAllowed)) {
 
-            $this->errorsOccurred[] = static::$error_messages['accept_file_types'];
-
-        }
-
-        if (!\is_dir($this->pathToSaveFiles)){
-
-            $this->errorsOccurred[] = static::$error_messages['no_destination_folder'];
+            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['accept_file_types'];
 
         }
 
-        if (!\is_dir($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)){
+        if (!\is_dir($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)) {
 
-            $this->errorsOccurred[] = static::$error_messages['no_destination_folder'];
+            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['no_destination_folder'];
+
+        }
+
+        if (!\is_writable($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)) {
+
+            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['failed_to_write'];
 
         }
 
-        if (!\is_writable($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)){
-
-            $this->errorsOccurred[] = static::$error_messages['failed_to_write'];
-
+        if (empty($this->errorsOccurred)) {
+            return true;
         }
+
+        return false;
+
+    }
+
+    public function createVersions(File $file)
+    {
+        foreach (static::$photoVersions as $key => $value) {
+
+            $resizer = new ImageResize($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles . $file->getFilename());
+
+            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles . $key)) {
+                mkdir($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles . $key, 0777, true);
+            }
+
+            $resizer->resize(explode('x', $value)[0], explode('x', $value)[1], true);
+            $resizer->save($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles . $key . '/' . $file->getFilename());
+        }
+
     }
 
     public static function getBytesFromIniProperty(string $property): int
@@ -143,13 +176,8 @@ class FileUploadHandler
         $files = array();
 
         foreach ($_FILES as $globalFile) {
-            $file = new File(
-                $globalFile['name'],
-                $globalFile['type'],
-                $globalFile['size'],
-                $globalFile['tmp_name'],
-                $globalFile['error']
-            );
+            $file = new File($globalFile['name'], $globalFile['type'], $globalFile['size'], $globalFile['tmp_name'],
+                $globalFile['error']);
 
             $files[] = $file;
         }

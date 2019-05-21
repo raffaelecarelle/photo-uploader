@@ -7,4 +7,4 @@ error_reporting(E_ALL);
 require 'vendor/autoload.php';
 
 $uploadHandler = new App\FileUploadHandler();
-$uploadHandler->initialize();
+echo json_encode($uploadHandler->initialize());

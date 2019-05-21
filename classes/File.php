@@ -40,15 +40,10 @@ class File
 
     /**
      * Save file on given path
-     * @throws Exception
      */
     public function save(string $path): bool
     {
-        if (!move_uploaded_file($this->filename, $path)) {
-            throw new \Exception('The file could not be uploaded.');
-        }
-
-        return true;
+        return move_uploaded_file($this->tmpname, $path . $this->filename);
     }
 
     /**
@@ -57,11 +52,7 @@ class File
      */
     public function delete(string $path): bool
     {
-        if (!unlink($path)) {
-            throw new \Exception('The file could not be deleted.');
-        }
-
-        return true;
+        return unlink($path . $this->filename);
     }
 
     public function getFilename(): string
