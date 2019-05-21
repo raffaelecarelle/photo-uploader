@@ -42,7 +42,7 @@ class FileUploadHandler
         'large' => '1024x768'
     ];
 
-    public function __construct($pathToSaveFiles = '/photo-uploader/photos/', $createVersions = true)
+    public function __construct($pathToSaveFiles = '/photos/', $createVersions = true)
     {
         $this->pathToSaveFiles = $pathToSaveFiles;
         $this->createVersions = $createVersions;

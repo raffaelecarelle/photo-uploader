@@ -51,7 +51,7 @@ function upload_photo() {
 
         // Send the photo
         $.ajax({
-            url: "/photo-uploader/upload.php",
+            url: "/upload.php",
             type: "POST",
             dataType: "json",
             contentType: false,
