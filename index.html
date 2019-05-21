@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Uploader</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"></link>
+</head>
+<body>
+
+
+<div class="container-fluid">
+
+    <form id="form" action="" method="post" enctype="multipart/form-data" class="mt-3">
+
+        <input id="photos" multiple type="file" name="photos" style="display: none"/>
+
+        <!-- No Photo uploaded preview box -->
+        <h2 id="no-photo-box" class="no-photo-uploaded-box u-margin-top-m u-margin-bottom-m">
+            IMG
+        </h2>
+
+        <div id="myProgress" style="display: none;">
+            <div id="progress-bar-photo-upload" class="u-margin-top-l" style="width:0"></div>
+        </div>
+
+        <button type="button" id="submit-photos" class="btn btn-primary"
+                onclick="document.getElementById('photos').click()">Insert photos
+        </button>
+
+    </form>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script>
+
+    // DOM Elements
+    var $file_input;
+    var $image_input_name;
+    var $photo_preview;
+    var $form;
+    var $image_empty_box;
+    var $progress_bar_photo_upload;
+    var $progress_bar_photo_upload_container;
+    var $submit_button;
+
+    // Variables
+    var is_one_photo_uploaded = false;
+    var fade_photo_widgets_time = 250;
+
+    $(document).ready(function () {
+
+        // Variables init
+        $file_input = $("#photos");
+        $image_input_name = $("#image-input-name");
+        $photo_preview = $("#photo-preview");
+        $form = $("#form");
+        $image_empty_box = $("#no-photo-box");
+        $progress_bar_photo_upload = $("#progress-bar-photo-upload");
+        $progress_bar_photo_upload_container = $progress_bar_photo_upload.parent();
+        $submit_button = $("#submit-photos");
+
+        $('#photos').on("change", upload_photo);
+    });
+
+    /**
+     * This function upload an image when it is selected
+     * @returns undefined
+     */
+    function upload_photo(event) {
+
+        // Fade out of the image preview
+        fade_out_element($photo_preview, fade_photo_widgets_time, 0);
+
+        // Fade in of the image loader
+        fade_in_element($progress_bar_photo_upload_container, fade_photo_widgets_time, fade_photo_widgets_time + 100, on_loader_fade_in);
+
+        function on_loader_fade_in() {
+
+            // Get the file from the input field
+            var files = event.target.files;
+
+            // Prepare the formatted for the upload
+            var formdata = new FormData();
+
+            // Attach to the files the POST's parameter's name: 'photo-n'
+            $.each(files, function (i, file) {
+                formdata.append('photo-'+i, file);
+            });
+
+            // Send the photo
+            $.ajax({
+                url: "/photo-uploader/upload.php",
+                type: "POST",
+                dataType: "json",
+                contentType: false,
+                cache: false,
+                processData: false,
+                data: formdata,
+                xhr: image_upload_xhr_handler,
+                success: on_photo_upload_completed
+            });
+
+            // On Post Request completed callback
+            function on_photo_upload_completed(response) {
+
+                // Remove the old progress bar event
+                $.ajaxSettings.xhr().upload.removeEventListener('progress', progress_bar_handler, false);
+
+                // Hide the progress bar
+                fade_out_element($progress_bar_photo_upload_container, fade_photo_widgets_time, 0, on_progress_bar_fade_out);
+
+                function on_progress_bar_fade_out() {
+
+                    // Reset the progress bar width
+                    $progress_bar_photo_upload.width(0);
+
+                    // Check if the image was correctly uploaded
+                    if (response.is_uploaded) {
+
+                        // Save the name file in the hidden input
+                        $image_input_name.val(response.file_name);
+
+                        // Show as preview the uploaded image (attach to an hidden <img> the photo and show it)
+                        load_photo_preview(files);
+                        fade_in_element($photo_preview, fade_photo_widgets_time, 0);
+
+
+                    } else {
+
+                        // Error
+                        alert(response.error_message);
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // Handler of ajax's xhr handler
+    function image_upload_xhr_handler() {
+        var myXhr = $.ajaxSettings.xhr();
+        if (myXhr.upload) {
+            myXhr.upload.addEventListener('progress', progress_bar_handler, false);
+        }
+        return myXhr;
+    }
+
+    // Image's progress bar handler
+    function progress_bar_handler(event) {
+
+        var percentage = (event.loaded / event.total) * 100;
+        var percentage_string = percentage + "%";
+
+        // Increase the progress bar
+        $progress_bar_photo_upload.width(percentage_string);
+
+    }
+
+    // Preview's loader
+    function load_photo_preview(files) {
+        var selectedFile = files[0];
+        var reader = new FileReader();
+
+        var img_tag = $photo_preview[0];
+        img_tag.title = selectedFile.name;
+
+        reader.onload = function (event) {
+            img_tag.src = event.target.result;
+        };
+
+        reader.readAsDataURL(selectedFile);
+    }
+
+    /**
+     * This function fade in an "$element" at some givent "time" and
+     * (at the end) it will fire the "end_callback"
+     * @returns undefined
+     */
+    function fade_in_element($element, time, time_wait, end_callback) {
+
+        // Start the fade in animation
+        $element
+            .delay(time_wait)
+            .animate({
+                opacity: 1
+            }, {
+                duration: time,
+                start: function () {
+
+                    // Prepare the $element with 0 opacity
+                    $element.css("opacity", 0);
+                    $element.show();
+
+                },
+                complete: function () {
+
+                    // On complete, execute the "end_callback"
+                    if (end_callback != undefined && end_callback != null) {
+                        end_callback();
+                    }
+
+                }
+            });
+
+    }
+
+    /**
+     * This function fade out an "$element" at some givent "time" and
+     * (at the end) it will fire the "end_callback"
+     * @returns undefined
+     */
+    function fade_out_element($element, time, time_wait, end_callback) {
+
+        // Start the fade out animation
+        $element
+            .delay(time_wait)
+            .animate({
+                opacity: 0
+            }, {
+                duration: time,
+                complete: function () {
+
+                    // On complete, hide the element and execute the "end_callback"
+                    $element.hide();
+                    if (end_callback != undefined && end_callback != null) {
+                        end_callback();
+                    }
+
+                }
+            });
+
+    }
+</script>
+</body>
+</html>
