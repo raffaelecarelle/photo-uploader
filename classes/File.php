@@ -5,6 +5,11 @@ namespace App;
 class File
 {
     /**
+     * ID univoco del file
+     */
+    private $id;
+
+    /**
      * Nome del file
      */
     private $filename;
@@ -29,8 +34,9 @@ class File
      */
     private $error;
 
-    public function __construct(string $filename, string $type, int $size, string $tmpname, int $error)
+    public function __construct(int $id, string $filename, string $type, int $size, string $tmpname, int $error)
     {
+        $this->id = $id;
         $this->filename = $filename;
         $this->type = $type;
         $this->size = $size;
@@ -78,5 +84,10 @@ class File
     public function getError(): int
     {
         return $this->error;
+    }
+
+    public function getId():int
+    {
+        return $this->id;
     }
 }

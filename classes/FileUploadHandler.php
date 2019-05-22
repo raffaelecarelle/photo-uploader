@@ -101,25 +101,25 @@ class FileUploadHandler
     {
         if ($file->getSize() >= static::getBytesFromIniProperty('upload_max_filesize')) {
 
-            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['upload_max_filesize'];
+            $this->errorsOccurred[$file->getId()] = static::$error_messages['upload_max_filesize'];
 
         }
 
         if (!\in_array($file->getType(), static::$typesAllowed)) {
 
-            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['accept_file_types'];
+            $this->errorsOccurred[$file->getId()] = static::$error_messages['accept_file_types'];
 
         }
 
         if (!\is_dir($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)) {
 
-            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['no_destination_folder'];
+            $this->errorsOccurred[$file->getId()] = static::$error_messages['no_destination_folder'];
 
         }
 
         if (!\is_writable($_SERVER['DOCUMENT_ROOT'] . $this->pathToSaveFiles)) {
 
-            $this->errorsOccurred[$file->getFilename()] = static::$error_messages['failed_to_write'];
+            $this->errorsOccurred[$file->getId()] = static::$error_messages['failed_to_write'];
 
         }
 
@@ -175,8 +175,9 @@ class FileUploadHandler
     {
         $files = array();
 
-        foreach ($_FILES as $globalFile) {
-            $file = new File($globalFile['name'], $globalFile['type'], $globalFile['size'], $globalFile['tmp_name'],
+        foreach ($_FILES as $id => $globalFile) {
+
+            $file = new File((int)$id, $globalFile['name'], $globalFile['type'], $globalFile['size'], $globalFile['tmp_name'],
                 $globalFile['error']);
 
             $files[] = $file;
